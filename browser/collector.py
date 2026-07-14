@@ -1,6 +1,7 @@
 import time
+from urllib import request, response
 from urllib.parse import urlparse
-
+from discovery.api_classifier import APIClassifier
 from discovery.endpoint_manager import EndpointManager
 from discovery.url_structure import Normalizer
 
@@ -12,6 +13,9 @@ class NetworkCollector:
 
 
     def handle_request(self, request):
+
+        if not APIClassifier.is_interesting_request(request):
+            return
 
         parsed = urlparse(request.url)
 
@@ -26,7 +30,17 @@ class NetworkCollector:
             "timestamp": time.time()
         }
 
+        ignore_types ={
+            "image",
+            "stylesheet",
+            "font",
+            "media"
+        }
 
+        if request.resource_type in ignore_types:
+            return
+
+        
         self.manager.add_request(
             path,
             request.method,
@@ -37,6 +51,9 @@ class NetworkCollector:
 
     def handle_response(self, response):
 
+        if not APIClassifier.is_interesting_request(request.response):
+            return
+        
         parsed = urlparse(response.url)
 
         path = Normalizer.normalize(parsed.path)
@@ -59,3 +76,4 @@ class NetworkCollector:
             path,
             data
         )
+
