@@ -51,7 +51,7 @@ class NetworkCollector:
 
     def handle_response(self, response):
 
-        if not APIClassifier.is_interesting_request(request.response):
+        if not APIClassifier.is_interesting_request(response):
             return
         
         parsed = urlparse(response.url)
