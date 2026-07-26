@@ -1,17 +1,10 @@
-import regex
+from urllib.parse import urlparse,parse_qs
 
-def scan_endpoint(endpoint,params):
-    for params in endpoint.requests:
-        print(f"Methods: {endpoint.methods}")
+def parse_endpoint(url):
+    parsed = urlparse(url)
+    parameters = parse_qs(parsed.query)
 
-    
-
-def tests_patterns(pattern):
-    if pattern == False:
-        pattern = True
-    elif regex.match([0-9] in pattern):
-        return pattern+1,pattern-1
-    
-    else:
-        return pattern
-
+    return {
+        "url": f"{parsed.scheme}://{parsed.netloc}{parsed.path}",
+        "params": parameters
+    }
