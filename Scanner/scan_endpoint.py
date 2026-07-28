@@ -1,11 +1,6 @@
 from urllib.parse import urlparse,parse_qs
 
-def create_endpoint(
-    method,
-    url,
-    headers=None,
-    body=None
-):
+def create_endpoint(method,url,headers=None,body=None):
     parsed = urlparse(url)
 
     endpoint = {
