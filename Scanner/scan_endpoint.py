@@ -1,40 +1,31 @@
-from urllib.parse import urlparse,parse_qs
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
-def create_endpoint(method,url,headers=None,body=None):
-    parsed = urlparse(url)
-
-    endpoint = {
-        "method": method,
-        "url": f"{parsed.scheme}://{parsed.netloc}{parsed.path}",
-        "query_params": {
-            key: values[0]
-            for key, values in parse_qs(parsed.query).items()
-        },
-        "headers": headers or {},
-        "body": body
-    }
-
-    return endpoint
+import requests
 
 
-def get_parameters(endpoint):
+def get_request_parameters(request):
     parameters = []
 
-    for name, value in endpoint.get("query_params", {}).items():
+    parsed = urlparse(request["url"])
+
+    for name, values in parse_qs(
+        parsed.query,
+        keep_blank_values=True
+    ).items():
         parameters.append({
             "name": name,
             "location": "query",
-            "value": value
+            "value": values[0]
         })
 
-    for name, value in endpoint.get("headers", {}).items():
+    for name, value in request.get("headers", {}).items():
         parameters.append({
             "name": name,
             "location": "header",
             "value": value
         })
 
-    body = endpoint.get("body")
+    body = request.get("body")
 
     if isinstance(body, dict):
         for name, value in body.items():
@@ -45,3 +36,90 @@ def get_parameters(endpoint):
             })
 
     return parameters
+
+
+def mutate_request(request, parameter, new_value):
+    mutated = {
+        **request,
+        "headers": dict(request.get("headers", {}))
+    }
+
+    location = parameter["location"]
+    name = parameter["name"]
+
+    if location == "query":
+        parsed = urlparse(mutated["url"])
+
+        query = parse_qs(
+            parsed.query,
+            keep_blank_values=True
+        )
+
+        query[name] = [new_value]
+
+        new_query = urlencode(
+            query,
+            doseq=True
+        )
+
+        mutated["url"] = urlunparse(
+            parsed._replace(query=new_query)
+        )
+
+    elif location == "header":
+        mutated["headers"][name] = new_value
+
+    elif location == "body":
+        body = dict(mutated.get("body", {}))
+        body[name] = new_value
+        mutated["body"] = body
+
+    return mutated
+
+
+def send_request(request, session=None):
+    session = session or requests.Session()
+
+    return session.request(
+        method=request.get("method", "GET"),
+        url=request["url"],
+        headers=request.get("headers", {}),
+        json=request.get("body"),
+        timeout=15
+    )
+
+
+def scan_request(request):
+    session = requests.Session()
+
+    base_response = send_request(
+        request,
+        session
+    )
+
+    results = []
+
+    parameters = get_request_parameters(request)
+
+    for parameter in parameters:
+        mutated_request = mutate_request(
+            request,
+            parameter,
+            "TEST"
+        )
+
+        response = send_request(
+            mutated_request,
+            session
+        )
+
+        results.append({
+            "parameter": parameter,
+            "status": response.status_code,
+            "length": len(response.text)
+        })
+
+    return {
+        "base_status": base_response.status_code,
+        "results": results
+    }
