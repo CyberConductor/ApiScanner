@@ -123,3 +123,26 @@ def scan_request(request):
         "base_status": base_response.status_code,
         "results": results
     }
+
+
+
+
+    def generate_test_values(value):
+    value = str(value)
+
+    if value.isdigit():
+        number = int(value)
+
+        return [
+            "0",
+            "-1",
+            str(number - 1),
+            str(number + 1),
+            "999999"
+        ]
+
+    return [
+        "",
+        "TEST",
+        value + "TEST"
+    ]
