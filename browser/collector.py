@@ -1,4 +1,5 @@
 import time
+import json
 from urllib import request, response
 from urllib.parse import urlparse
 from discovery.api_classifier import APIClassifier
@@ -18,19 +19,30 @@ class NetworkCollector:
             return
 
         parsed = urlparse(request.url)
-
         path = Normalizer.normalize(parsed.path)
+
+        body = None
+        if request.post_data:
+            try:
+                if isinstance(request.post_data, str):
+                    body = json.loads(request.post_data)
+                elif isinstance(request.post_data, bytes):
+                    body = json.loads(request.post_data.decode('utf-8'))
+                else:
+                    body = request.post_data
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                body = request.post_data
 
         data = {
             "url": request.url,
             "method": request.method,
             "headers": dict(request.headers),
-            "post_data": request.post_data,
+            "body": body,
             "resource_type": request.resource_type,
             "timestamp": time.time()
         }
 
-        ignore_types ={
+        ignore_types = {
             "image",
             "stylesheet",
             "font",
@@ -40,7 +52,6 @@ class NetworkCollector:
         if request.resource_type in ignore_types:
             return
 
-        
         self.manager.add_request(
             path,
             request.method,
@@ -55,7 +66,6 @@ class NetworkCollector:
             return
         
         parsed = urlparse(response.url)
-
         path = Normalizer.normalize(parsed.path)
 
         data = {
@@ -65,12 +75,10 @@ class NetworkCollector:
             "timestamp": time.time()
         }
 
-
         try:
             data["body"] = response.text()
         except Exception:
             data["body"] = None
-
 
         self.manager.add_response(
             path,
